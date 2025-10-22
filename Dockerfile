@@ -13,7 +13,9 @@ RUN python3 -m venv venv --copies
 
 RUN source /RoboManip/venv/bin/activate && \
     cd /RoboManip/RoboManipBaselines && \
-    sed -i -e 's@"torch"@"torch<2.9"@' pyproject.toml && \
     pip install -e .[act]  && \
     cd third_party/act/detr && \
     pip install -e .
+
+## add for fix torch version
+#    sed -i -e 's@"torch"@"torch<2.9"@' pyproject.toml && \
