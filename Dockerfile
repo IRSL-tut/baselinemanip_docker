@@ -19,3 +19,24 @@ RUN source /RoboManip/venv/bin/activate && \
 
 ## add for fix torch version
 #    sed -i -e 's@"torch"@"torch<2.9"@' pyproject.toml && \
+
+## SARNN
+RUN source /RoboManip/venv/bin/activate && \
+    cd /RoboManip/RoboManipBaselines && \
+    pip install -e .[sarnn] && \ 
+    cd third_party/eipl && \
+    pip install -e .
+
+## Diffusion Policy
+RUN apt update -q -qq && \
+    apt install -q -qq -y libosmesa6-dev libglfw3 patchelf && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/
+# libgl1-mesa-glx is not required in irsl_system
+RUN source /RoboManip/venv/bin/activate && \
+    cd /RoboManip/RoboManipBaselines && \
+    pip install -e .[diffusion-policy] && \
+    cd third_party/diffusion_policy && \
+    pip install -e .
+
+## other policies
