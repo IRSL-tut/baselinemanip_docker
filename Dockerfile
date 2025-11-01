@@ -1,26 +1,32 @@
 FROM repo.irsl.eiiris.tut.ac.jp/irsl_system:one
 
+ARG TORCH_VER=2.9
 ###
 RUN (cd /; git clone https://github.com/isri-aist/RoboManipBaselines.git --recursive)
 
 WORKDIR /RoboManipBaselines
 
 RUN apt update -q -qq && \
-    apt install -q -qq -y ffmpeg python3-venv && \
+    apt install -q -qq -y ffmpeg python3-venv libnppicc12 && \
     apt clean && \
     rm -rf /var/lib/apt/lists/
 
 RUN python3 -m venv /irsl_venv --copies
 
 ## install pytorch
-RUN source /irsl_venv/bin/activate && \
-    pip install --break-system-packages torch==2.9.0 torchvision
-## torch 2.8.0 / cuda 12.8 | failed?
-#    pip install --break-system-packages torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
-## torch 2.7.1 / cuda12.6
-#    pip install --break-system-packages torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu126
-## torch 2.9 / cuda12.8 | success
-#    pip install --break-system-packages torch==2.9.0 torchvision
+RUN <<EOF
+source /irsl_venv/bin/activate
+if [ ${TORCH_VER} == '2.9' ]; then
+    pip install --break-system-packages torch==2.9.0 torchvision torchcodec==0.8
+elif [ ${TORCH_VER} == '2.8' ]; then
+    pip install --break-system-packages torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 torchcodec==0.6 --index-url https://download.pytorch.org/whl/cu128
+elif [ ${TORCH_VER} == '2.7' ]; then
+    pip install --break-system-packages torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 torchcodec==0.5 --index-url https://download.pytorch.org/whl/cu126
+else
+    set -e
+    [ 0 -eq 1 ] ## failed
+fi
+EOF
 
 RUN source /irsl_venv/bin/activate && \
     cd /RoboManipBaselines && \
