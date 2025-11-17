@@ -2,7 +2,7 @@ FROM repo.irsl.eiiris.tut.ac.jp/irsl_system:one
 
 ARG TORCH_VER=2.9
 ###
-RUN (cd /; git clone https://github.com/isri-aist/RoboManipBaselines.git --recursive)
+RUN (cd /; git clone https://github.com/IRSL-tut/RoboManipBaselines.git --recursive)
 
 WORKDIR /RoboManipBaselines
 
