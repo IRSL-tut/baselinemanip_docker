@@ -15,7 +15,7 @@ class JoyControl(object):
         self.lock = Lock()
         self.ax = mkshapes.make3DAxis(radius=0.04, length=0.3, axisRatio=0.25)
         self.di = DrawInterface()
-        self.di.addObject(ax)
+        self.di.addObject(self.ax)
         self.sclp = scale_pos
         self.sclr = scale_rot
     #
