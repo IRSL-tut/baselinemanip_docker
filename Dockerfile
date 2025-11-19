@@ -11,11 +11,17 @@ RUN apt update -q -qq && \
     apt clean && \
     rm -rf /var/lib/apt/lists/
 
+# RUN python3 -m venv /irsl_venv --copies --system-site-packages
 RUN python3 -m venv /irsl_venv --copies
 
 ## install pytorch
 RUN <<EOF
-source /irsl_venv/bin/activate
+if [ -e /irsl_venv/bin/activate ]; then
+   source /irsl_venv/bin/activate
+fi
+mkdir -p /opt/python
+pip install --target /opt/python iceoryx2==0.7.0
+#
 if [ ${TORCH_VER} == '2.9' ]; then
     pip install --break-system-packages torch==2.9.0 torchvision torchcodec==0.8
 elif [ ${TORCH_VER} == '2.8' ]; then
