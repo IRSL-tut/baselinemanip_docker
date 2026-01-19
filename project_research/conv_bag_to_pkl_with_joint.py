@@ -1,0 +1,333 @@
+# %autoindent
+#
+# under ROS environment
+#
+import rosbag
+import rospy
+import pickle
+
+name_arm_state  = f'/{}/trajectory_controller/state'
+name_gripper_state  = f'/{}/gripper_controller/state'
+name_joint_state = f'/{}/joint_states'
+
+#name_cam_rgb   = '/hsrb/head_rgbd_sensor/rgb/image_rect_color' ## main-camera
+#hame_cam_head_depth = '/hsrb/head_rgbd_sensor/depth_registered/image_rect_raw'
+name_cam_hand       = '/usb_cam/image_raw'
+
+#
+# determine time steps with this message
+#
+main_topic = name_cam_hand
+
+use_topics = (
+    name_arm_state,
+    name_gripper_state,
+    name_joint_state,
+    name_cam_hand,
+)
+
+def twist_to_data(twist):
+    ## numpy version
+    return np.array((twist.linear.x, twist.linear.y, twist.angular.z), dtype='float32')
+    ## list version
+    #return (twist.linear.x, twist.linear.y, twist.angular.z,)
+
+def odom_to_data(odom):
+    return twist_to_data(odom.twist.twist)
+
+### camera
+from sensor_msgs.msg import Image, CameraInfo
+from cv_bridge import CvBridge
+import numpy as np
+#bgr
+# def _from_rosImage(msg):
+#     bridge = CvBridge()
+#     cv_img = bridge.imgmsg_to_cv2(msg)
+#     ##
+#     #return cv_img.tolist()
+#     ## numpy version
+#     return cv_img
+def _from_rosImage(msg):
+    bridge = CvBridge()
+    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+    ##
+    #return cv_img.tolist()
+    ## numpy version
+    return cv_img
+def find_nearest(lst, tm, start=0):
+    size = len(lst)
+    prev_t, prev_msg = lst[0]
+    if tm <= prev_t:
+        return -1, prev_t, prev_msg
+    for i in range(start, size):
+        t, msg = lst[i]
+        if tm > prev_t and tm <= t:
+            if tm - prev_t > t - tm:
+                return i, t, msg
+            else:
+                return i - 1, prev_t, prev_msg
+    return None, None, None ## last-one
+
+convertFunctions = {
+    'nav_msgs/Odometry':    odom_to_data,
+    'geometry_msgs/Twist':  twist_to_data,
+    'sensor_msgs/Image':    _from_rosImage,
+    }
+
+state_names = [
+    "LINK_0",
+    "LINK_1",
+    "LINK_2",
+    "LINK_3",
+    "LINK_4",
+    "LINK_5",
+    "LINK_6",
+    ]
+
+action_names = [
+    "LINK_0",
+    "LINK_1",
+    "LINK_2",
+    "LINK_3",
+    "LINK_4",
+    "LINK_5",
+    "LINK_6",
+    ]
+##
+def makeState(msg_joint_state):
+    data = {}
+    for n, p in zip(msg_joint_state.name,  msg_joint_state.position):
+        data[n] = p
+    res = []
+    for n in state_names:
+        res.append(data[n])
+    return np.array(res)
+
+def makeAction(msg_arm_traj, msg_head_traj, msg_joint_state):
+    data = {}
+    for n, p in zip(msg_arm_traj.joint_names, msg_arm_traj.desired.positions):
+        data[n] = p
+    for n, p in zip(msg_head_traj.joint_names, msg_head_traj.desired.positions):
+        data[n] = p
+    res = []
+    for n in action_names:
+        res.append(data[n])
+    ## hot fix for gripper
+    #idx = msg_joint_state.name.index("hand_motor_joint")
+    #res.append(msg_joint_state.position[idx])
+    return np.array(res)
+
+def mainFunction(bag_file, pkl_name, rate=60.0): ## add skip or rate
+    ## open bag
+    bag = rosbag.Bag(bag_file)
+    topic_types, topics = bag.get_type_and_topic_info()
+
+    ## parse classes
+    topic_class = {}
+    for i, mname in enumerate(topic_types):
+        mg = mname.split('/')
+        evstr = f'from {mg[0]}.msg import {mg[1]} as msg{i:0>3}'
+        print(evstr)
+        exec(evstr)
+        tmp = { 'class': eval(f'msg{i:0>3}') }
+        if mname in convertFunctions:
+            tmp['func'] = convertFunctions[mname]
+        topic_class[mname] = tmp
+
+    ## main - time
+    main_msgs = []
+    print(main_topic)
+    useHeader = False
+    if hasattr(topic_class[ topics[main_topic].msg_type ]['class'], 'header'):
+        useHeader = True
+    for _ , msg, t in bag.read_messages(topics=[main_topic]):
+        print('.', end='', flush=True)
+        if useHeader:
+            tm = rospy.Time(secs=msg.header.stamp.secs, nsecs=msg.header.stamp.nsecs).to_sec()
+        else:
+            tm = t.to_sec()
+        main_msgs.append( (tm, tm,) )
+    print('!')
+
+    ## store all messages
+    all_msgs = {}
+    for tname in use_topics:
+        if not tname in topics:
+            continue
+        useHeader = False
+        if hasattr(topic_class[ topics[tname].msg_type ]['class'], 'header'):
+            useHeader = True
+        ##
+        lst = []
+        # func = topic_class[ topics[tname].msg_type ]['func'] if 'func' in  topic_class[ topics[tname].msg_type ] else None
+        # print(tname, func)
+        for _ , msg, t in bag.read_messages(topics=[tname]):
+            print('.', end='', flush=True)
+            if useHeader:
+                tm = rospy.Time(secs=msg.header.stamp.secs, nsecs=msg.header.stamp.nsecs).to_sec()
+            else:
+                tm = t.to_sec()
+            #if func is not None:
+            #    msg = func(msg)
+            lst.append( (tm, msg,) )
+        print('!')
+        all_msgs[tname] = lst
+
+    ## find nearest messages based on time
+    final_msgs = {}
+    for tname in use_topics:
+        if not tname in all_msgs:
+            continue
+        lst = all_msgs[tname]
+        idx = 0
+        res = []
+        print(tname)
+        for tm, _ in main_msgs:
+            idx, t, msg = find_nearest(lst, tm, start = idx)
+            res.append( (t, msg, idx, ) )
+            if idx is None:
+                idx = len(lst)-1
+            if idx < 0:
+                idx = 0
+        final_msgs[tname] = res 
+    final_msgs['T'] = main_msgs
+    #final_msgs['__topic_types'] = topic_types
+    #final_msgs['__topics'] = topics
+
+    ### remove None
+    doing = True
+    while doing:
+        remove_idx = -1
+        for key, lst in final_msgs.items():
+            for idx, l in enumerate(lst):
+                if l[0] is None:
+                    remove_idx = idx
+                    break
+            if remove_idx >=0:
+                break
+        if remove_idx >=0:
+            ## remove remove_idx
+            print('remove : ', idx)
+            for key, lst in final_msgs.items():
+                del lst[remove_idx]
+        else:
+            ## all data is not None
+            doing = False
+
+    ### TODO: skip or rate
+    if rate is not None:
+        dur = 1 / rate
+        indices = [0]
+        tm = final_msgs['T']
+        prev = tm[0][0]
+        for idx in range(len(tm)):
+            cur = tm[idx][0]
+            if cur - prev >= dur:
+                indices.append(idx)
+                prev = cur
+        tmp = final_msgs
+        final_msgs = {}
+        for k in tmp.keys():
+            res = []
+            vals = tmp[k]
+            for idx in indices:
+                res.append(vals[idx])
+            final_msgs[k] = res
+
+    ### convert msgs -> np.array
+    arrays = {}
+    sz = len(final_msgs['T'])
+    print(sz)
+    arrays['state_pos']   = []
+    arrays['action_pos']  = []
+    arrays['hand_image']  = []
+    arrays['reward']=[]
+    arrays['T'] = []
+    for idx in range(sz):
+        state = makeState(
+            final_msgs[name_joint_state][idx][1],
+        )
+        action = makeAction(
+            final_msgs[name_arm_state][idx][1],
+            final_msgs[name_head_state][idx][1],
+            final_msgs[name_joint_state][idx][1],
+        )
+        hand_image = _from_rosImage( final_msgs[name_cam_hand][idx][1] )
+        arrays['state_pos' ].append(state)
+        arrays['action_pos'].append(action)
+        arrays['hand_image'].append(hand_image)
+        arrays['reward'].append(0.0)
+        arrays['T'].append(final_msgs['T'][idx][0])
+    with open(pkl_name, 'wb') as f:
+        pickle.dump(arrays, f)
+
+    return arrays
+if __name__ == "__main__":
+    import argparse
+    import os
+    import glob
+
+    parser = argparse.ArgumentParser(
+        description="Convert HSR rosbag(s) to pickle. "
+                    "If bag_path is a directory, all *.bag under it will be converted."
+    )
+    parser.add_argument("bag_path", type=str,
+                        help="input rosbag file OR directory containing rosbag files")
+    parser.add_argument("pkl_name", type=str, nargs="?",
+                        help="output pickle file (single-file mode only)")
+    parser.add_argument("--outdir", type=str, default=None,
+                        help="Directory to store output pickle files (directory mode only)")
+    args = parser.parse_args()
+
+    # ==========================================================
+    #  DIRECTORY MODE
+    # ==========================================================
+    if os.path.isdir(args.bag_path):
+        input_dir = args.bag_path
+        bag_files = sorted(glob.glob(os.path.join(input_dir, "**", "*.bag"), recursive=True))
+
+        if not bag_files:
+            print("[WARN] No .bag files found.")
+            raise SystemExit(0)
+
+        # 出力フォルダ必須
+        if args.outdir is None:
+            print("[ERROR] Directory mode requires --outdir OUTPUT_FOLDER")
+            print("Example:")
+            print("  python convert_bag_to_pickle.py data/ --outdir output_pkl/")
+            raise SystemExit(1)
+
+        outdir = args.outdir
+        os.makedirs(outdir, exist_ok=True)
+
+        print(f"[INFO] Directory mode")
+        print(f"[INFO] Input bags : {input_dir}")
+        print(f"[INFO] Output dir : {outdir}")
+        print(f"[INFO] Found {len(bag_files)} bag files")
+
+        for bag_file in bag_files:
+            base = os.path.basename(bag_file)          # xxx.bag
+            pkl_name = os.path.splitext(base)[0] + ".pkl"
+            out_path = os.path.join(outdir, pkl_name)
+
+            print(f"[INFO] Converting: {bag_file} -> {out_path}")
+            try:
+                mainFunction(bag_file, out_path)
+            except Exception as e:
+                print(f"[ERROR] Failed to convert {bag_file}: {e}")
+
+    # ==========================================================
+    #  SINGLE-FILE MODE
+    # ==========================================================
+    else:
+        if args.pkl_name is None:
+            print("[ERROR] Single-file mode requires pkl_name.")
+            print("Usage:")
+            print("  python convert_bag_to_pickle.py input.bag output.pkl")
+            raise SystemExit(1)
+
+        print(f"[INFO] File mode")
+        print(f"[INFO] Input bag : {args.bag_path}")
+        print(f"[INFO] Output pkl: {args.pkl_name}")
+
+        mainFunction(args.bag_path, args.pkl_name)
