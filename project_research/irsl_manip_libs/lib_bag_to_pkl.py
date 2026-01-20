@@ -1,17 +1,12 @@
-# %autoindent
-#
-# under ROS environment
-#
 import rosbag
 import rospy
 import pickle
 
-name_arm_state  = f'/{}/trajectory_controller/state'
-name_gripper_state  = f'/{}/gripper_controller/state'
-name_joint_state = f'/{}/joint_states'
+_namespace_ = 'divided_robot'
+name_arm_state  = f'/{_namespace_}/trajectory_controller/state'
+name_gripper_state  = f'/{_namespace_}/gripper_controller/state'
+name_joint_state = f'/{_namespace_}/joint_states'
 
-#name_cam_rgb   = '/hsrb/head_rgbd_sensor/rgb/image_rect_color' ## main-camera
-#hame_cam_head_depth = '/hsrb/head_rgbd_sensor/depth_registered/image_rect_raw'
 name_cam_hand       = '/usb_cam/image_raw'
 
 #
@@ -94,7 +89,7 @@ action_names = [
     "LINK_6",
     ]
 ##
-def makeState(msg_joint_state):
+def makeStatePos(msg_joint_state):
     data = {}
     for n, p in zip(msg_joint_state.name,  msg_joint_state.position):
         data[n] = p
@@ -102,12 +97,19 @@ def makeState(msg_joint_state):
     for n in state_names:
         res.append(data[n])
     return np.array(res)
-
-def makeAction(msg_arm_traj, msg_head_traj, msg_joint_state):
+def makeStateTrq(msg_joint_state):
+    data = {}
+    for n, p in zip(msg_joint_state.name,  msg_joint_state.effort):
+        data[n] = p
+    res = []
+    for n in state_names:
+        res.append(data[n])
+    return np.array(res)
+def makeAction(msg_arm_traj, msg_grip_traj):
     data = {}
     for n, p in zip(msg_arm_traj.joint_names, msg_arm_traj.desired.positions):
         data[n] = p
-    for n, p in zip(msg_head_traj.joint_names, msg_head_traj.desired.positions):
+    for n, p in zip(msg_grip_traj.joint_names, msg_grip_traj.desired.positions):
         data[n] = p
     res = []
     for n in action_names:
@@ -239,21 +241,25 @@ def mainFunction(bag_file, pkl_name, rate=60.0): ## add skip or rate
     sz = len(final_msgs['T'])
     print(sz)
     arrays['state_pos']   = []
+    arrays['state_trq']   = []
     arrays['action_pos']  = []
     arrays['hand_image']  = []
     arrays['reward']=[]
     arrays['T'] = []
     for idx in range(sz):
-        state = makeState(
+        state_pos = makeStatePos(
+            final_msgs[name_joint_state][idx][1],
+        )
+        state_trq = makeStateTrq(
             final_msgs[name_joint_state][idx][1],
         )
         action = makeAction(
             final_msgs[name_arm_state][idx][1],
-            final_msgs[name_head_state][idx][1],
-            final_msgs[name_joint_state][idx][1],
+            final_msgs[name_gripper_state][idx][1],
         )
         hand_image = _from_rosImage( final_msgs[name_cam_hand][idx][1] )
-        arrays['state_pos' ].append(state)
+        arrays['state_pos' ].append(state_pos)
+        arrays['state_trq' ].append(state_trq)
         arrays['action_pos'].append(action)
         arrays['hand_image'].append(hand_image)
         arrays['reward'].append(0.0)
@@ -262,72 +268,3 @@ def mainFunction(bag_file, pkl_name, rate=60.0): ## add skip or rate
         pickle.dump(arrays, f)
 
     return arrays
-if __name__ == "__main__":
-    import argparse
-    import os
-    import glob
-
-    parser = argparse.ArgumentParser(
-        description="Convert HSR rosbag(s) to pickle. "
-                    "If bag_path is a directory, all *.bag under it will be converted."
-    )
-    parser.add_argument("bag_path", type=str,
-                        help="input rosbag file OR directory containing rosbag files")
-    parser.add_argument("pkl_name", type=str, nargs="?",
-                        help="output pickle file (single-file mode only)")
-    parser.add_argument("--outdir", type=str, default=None,
-                        help="Directory to store output pickle files (directory mode only)")
-    args = parser.parse_args()
-
-    # ==========================================================
-    #  DIRECTORY MODE
-    # ==========================================================
-    if os.path.isdir(args.bag_path):
-        input_dir = args.bag_path
-        bag_files = sorted(glob.glob(os.path.join(input_dir, "**", "*.bag"), recursive=True))
-
-        if not bag_files:
-            print("[WARN] No .bag files found.")
-            raise SystemExit(0)
-
-        # 出力フォルダ必須
-        if args.outdir is None:
-            print("[ERROR] Directory mode requires --outdir OUTPUT_FOLDER")
-            print("Example:")
-            print("  python convert_bag_to_pickle.py data/ --outdir output_pkl/")
-            raise SystemExit(1)
-
-        outdir = args.outdir
-        os.makedirs(outdir, exist_ok=True)
-
-        print(f"[INFO] Directory mode")
-        print(f"[INFO] Input bags : {input_dir}")
-        print(f"[INFO] Output dir : {outdir}")
-        print(f"[INFO] Found {len(bag_files)} bag files")
-
-        for bag_file in bag_files:
-            base = os.path.basename(bag_file)          # xxx.bag
-            pkl_name = os.path.splitext(base)[0] + ".pkl"
-            out_path = os.path.join(outdir, pkl_name)
-
-            print(f"[INFO] Converting: {bag_file} -> {out_path}")
-            try:
-                mainFunction(bag_file, out_path)
-            except Exception as e:
-                print(f"[ERROR] Failed to convert {bag_file}: {e}")
-
-    # ==========================================================
-    #  SINGLE-FILE MODE
-    # ==========================================================
-    else:
-        if args.pkl_name is None:
-            print("[ERROR] Single-file mode requires pkl_name.")
-            print("Usage:")
-            print("  python convert_bag_to_pickle.py input.bag output.pkl")
-            raise SystemExit(1)
-
-        print(f"[INFO] File mode")
-        print(f"[INFO] Input bag : {args.bag_path}")
-        print(f"[INFO] Output pkl: {args.pkl_name}")
-
-        mainFunction(args.bag_path, args.pkl_name)
