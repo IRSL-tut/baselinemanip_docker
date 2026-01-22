@@ -1,13 +1,15 @@
+#!/usr/bin/env python3
+
 #from irsl_manip_libs.lib_pkl_to_rmb import make_rmb_data
 from irsl_manip_libs.lib_pkl_to_rmb import convert_pickle_to_rmb
+import argparse
+import os
+import glob
 
 ##
 ## convert_pickle_to_rmb('hsrbag000.pkl', 'hsr000.rmb', data_names)
 ##
 if __name__ == "__main__":
-    import argparse
-    import os
-    import glob
 
     parser = argparse.ArgumentParser(
         description="Convert HSR pickle data (.pkl) to RMB format (.rmb). "

@@ -1,14 +1,16 @@
+#!/usr/bin/env python3
+
 # %autoindent
 #
 # under ROS environment
 #
 from irsl_manip_libs.lib_bag_to_pkl import mainFunction
-
+import argparse
+import os
+import glob
 
 if __name__ == "__main__":
-    import argparse
-    import os
-    import glob
+
 
     parser = argparse.ArgumentParser(
         description="Convert HSR rosbag(s) to pickle. "
