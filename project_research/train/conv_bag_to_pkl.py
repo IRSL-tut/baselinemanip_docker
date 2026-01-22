@@ -4,7 +4,7 @@
 #
 # under ROS environment
 #
-from irsl_manip_libs.lib_bag_to_pkl import mainFunction
+from lib_bag_to_pkl import mainFunction
 import argparse
 import os
 import glob

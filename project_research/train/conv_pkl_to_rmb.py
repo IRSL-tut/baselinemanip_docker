@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #from irsl_manip_libs.lib_pkl_to_rmb import make_rmb_data
-from irsl_manip_libs.lib_pkl_to_rmb import convert_pickle_to_rmb
+from lib_pkl_to_rmb import convert_pickle_to_rmb
 import argparse
 import os
 import glob
