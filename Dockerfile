@@ -19,8 +19,14 @@ RUN <<EOF
 if [ -e /irsl_venv/bin/activate ]; then
    source /irsl_venv/bin/activate
 fi
+
+## iceoryx2 -> /opt/python
 mkdir -p /opt/python
 pip install --target /opt/python iceoryx2==0.7.0
+
+## copy local library
+COPY irsl_manip_libs /opt/python/
+
 #
 if [ ${TORCH_VER} == '2.9' ]; then
     pip install --break-system-packages torch==2.9.0 torchvision torchcodec==0.8

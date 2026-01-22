@@ -1,8 +1,4 @@
-### HOT-FIX
-import sys
-if not '/opt/python' in sys.path:
-    sys.path.append('/opt/python')
-###
+##
 import iceoryx2 as iox2
 ##
 import ctypes
