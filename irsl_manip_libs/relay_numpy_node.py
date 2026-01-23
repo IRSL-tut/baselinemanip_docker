@@ -2,8 +2,8 @@ import rospy
 import io
 from threading import Lock
 
-from irsl_iceoryx2 import recvNumpy
-from irsl_iceoryx2 import sendNumpy
+from .irsl_iceoryx2 import recvNumpy
+from .irsl_iceoryx2 import sendNumpy
 
 ## toROS
 class relayToROS(recvNumpy):

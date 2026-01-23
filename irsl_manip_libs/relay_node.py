@@ -2,8 +2,8 @@ import rospy
 import io
 from threading import Lock
 
-from irsl_iceoryx2 import SubIce
-from irsl_iceoryx2 import PubIce
+from .irsl_iceoryx2 import SubIce
+from .irsl_iceoryx2 import PubIce
 
 ## toROS
 class relayToROS(SubIce):
