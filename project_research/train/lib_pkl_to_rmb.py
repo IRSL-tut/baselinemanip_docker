@@ -41,7 +41,8 @@ data_names = {
     DataKey.MEASURED_JOINT_POS : 'state_pos',
     DataKey.COMMAND_JOINT_POS : 'action_pos',
     ## joint_torque
-    DataKey.MEASURED_JOINT_TORQUE : 'state_trq',
+    #DataKey.MEASURED_JOINT_TORQUE : 'state_trq', ## not used in RobomanipBaselines
+    DataKey.MEASURED_JOINT_VEL : 'state_trq',
     ## time
     DataKey.TIME : 'T',
     }
