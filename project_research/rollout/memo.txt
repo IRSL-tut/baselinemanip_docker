@@ -1,0 +1,14 @@
+bash -lc 'source /choreonoid_ws/install/setup.bash; python3 -u relay_nodes_on_ros.py'
+
+/usr/bin/pip install --break-system-packages 'numpy<2'
+## pip install --break-system-packages 'numpy<2' ##???
+
+cd project_research/rollout
+source /choreonoid_ws/install/setup.bash; /usr/bin/python3 -u relay_nodes_on_ros.py
+
+docker exec -it robomanip bash
+export PS1='$ '
+
+cd project_research/rollout
+source /irsl_venv/bin/activate
+python -u interfaces_on_rolloutAct.py --checkpoint /userdir/chk001_a/policy_last.ckpt

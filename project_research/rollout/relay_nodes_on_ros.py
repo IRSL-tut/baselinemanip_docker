@@ -1,11 +1,11 @@
 import sys
 sys.path.append('/opt/python')
 
-import relay_node
+from irsl_manip_libs import relay_node
 # from relay_node import relayToROS
 # from relay_node import relayFromROS
-from relay_numpy_node import relayToROS
-from relay_numpy_node import relayFromROS
+from irsl_manip_libs.relay_numpy_node import relayToROS
+from irsl_manip_libs.relay_numpy_node import relayFromROS
 
 import numpy as np
 
@@ -19,9 +19,10 @@ from control_msgs.msg import JointTrajectoryControllerState
 from cv_bridge import CvBridge
 
 # ★ RobotInterface の読み込み（あなたの環境と同じやり方）
-exec(open('/choreonoid_ws/install/share/irsl_choreonoid/sample/irsl_import.py').read())
-ri = RobotInterface('/choreonoid_ws/src/irsl_hsr_pkgs/irsl_hsr_model/hsrb/robot_interface.yaml',
-                    connection=True)
+#exec(open('/choreonoid_ws/install/share/irsl_choreonoid/sample/irsl_import.py').read())
+#ri = RobotInterface('/choreonoid_ws/src/irsl_hsr_pkgs/irsl_hsr_model/hsrb/robot_interface.yaml',
+#                    connection=True)
+
 def array_to_jointtraj(ary, joint_names, duration=1.0):
     """numpy → JointTrajectory"""
     traj = JointTrajectory()
@@ -32,11 +33,13 @@ def array_to_jointtraj(ary, joint_names, duration=1.0):
     point.time_from_start = rospy.Duration(duration)
 
     traj.points = [point]
+    print('com_t: {}'.format(len(joint_names)))
     return traj
 
 def image_msg_to_array(msg):
     bridge = CvBridge()
     cv_img = bridge.imgmsg_to_cv2(msg)
+    #print('img')
     return cv_img
 
 STATE_JOINT_ORDER = [
@@ -51,7 +54,7 @@ STATE_JOINT_ORDER = [
 def joint_states_msg_to_array(msg):
     # name → index
     name_to_idx = {name: i for i, name in enumerate(msg.name)}
-
+    #
     vals = []
     for n in STATE_JOINT_ORDER:
         if n in name_to_idx:
@@ -59,7 +62,8 @@ def joint_states_msg_to_array(msg):
         else:
             # 念のため無いときは0で埋める
             vals.append(0.0)
-
+    #print('traj')
+    #
     return np.asarray(vals, dtype="float32")
 
 
@@ -70,15 +74,15 @@ def joint_states_msg_to_array(msg):
 # hand_image
 r_hand_image = relayFromROS(
     'ice_hand_image',
-    '/hsrb/hand_camera/image_raw',
+    '/divided_robot/Camera0/color/image_raw',
     Image,
-    hand_image_msg_to_array,
+    image_msg_to_array,
 )
 
 # joint_states
 r_joint_states = relayFromROS(
     'ice_joint_states',
-    '/hsrb/joint_states',
+    '/divided_robot/joint_states',
     JointState,
     joint_states_msg_to_array,
 )
@@ -98,22 +102,22 @@ ARM_JOINT_NAMES  = [
 _duration = 0.4
 r_arm_cmd_out = relayToROS(
     'ice_arm_cmd_out',
-    '/hsrb/arm_trajectory_controller/command',
+    '/divided_robot/trajectory_controller/command',
     JointTrajectory,
     lambda ary: array_to_jointtraj(ary, ARM_JOINT_NAMES, _duration)
 )
 
 GRIPPER_JOINT_NAMES = ['LINK_6']
 r_gripper_cmd_out = relayToROS(
-    'ice_head_cmd_out',
-    '/hsrb/head_trajectory_controller/command',
+    'ice_gripper_cmd_out',
+    '/divided_robot/gripper_controller/command',
     JointTrajectory,
     lambda ary: array_to_jointtraj(ary, GRIPPER_JOINT_NAMES, _duration)
 )
 
 ##
-r_hand_image.main('irsl_relay_hand_image')       # ★ 追加
-r_joint_states.main('irsl_relay_joint_states')    # ★ 追加
+r_hand_image.main('irsl_relay_hand_image')
+r_joint_states.main('irsl_relay_joint_states')
 
 ##
 r_arm_cmd_out.main('relay_arm_cmd_out')

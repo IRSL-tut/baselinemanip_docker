@@ -4,7 +4,7 @@
 import sys
 sys.path.append("/opt/python")   # irsl_iceoryx2 用
 
-from irsl_iceoryx2 import recvNumpy, sendNumpy
+from irsl_manip_libs.irsl_iceoryx2 import recvNumpy, sendNumpy
 import numpy as np
 import time
 import torch
@@ -99,7 +99,7 @@ def main():
     PUB_INTERVAL = 1/10  # ここで pub 周期だけを制御（10Hz）
 
     def publish_loop():
-        nonlocal latest_base_cmd, latest_head_cmd, latest_arm_cmd, latest_gripper_cmd, has_action
+        nonlocal latest_arm_cmd, latest_gripper_cmd, has_action
         try:
             while True:
                 time.sleep(PUB_INTERVAL)
@@ -112,14 +112,14 @@ def main():
                 pub_arm_cmd.sendAry(arm_cmd)
                 pub_gripper_cmd.sendAry(grip_cmd)
                 # デバッグしたければここに print を置く
-                #print("[pub] base:", base_cmd, "head:", head_cmd, "arm:", arm_cmd, "grip:", grip_cmd)
+                print("[pub] arm:", arm_cmd, "grip:", grip_cmd)
 
         except KeyboardInterrupt:
             print("[publish_loop] interrupted")
 
     # ===== 推論ループ（可能な限り回し続ける） =====
     def inference_loop():
-        nonlocal latest_base_cmd, latest_head_cmd, latest_arm_cmd, latest_gripper_cmd, has_action
+        nonlocal latest_arm_cmd, latest_gripper_cmd, has_action
 
         while True:
             # --- 1) 最新のセンサ値を取得 ---
@@ -151,7 +151,7 @@ def main():
             action = rollout.step(state, images, do_plot=False)
 
             arm_cmd = action[:JOINT_CMD_DIM]
-            gripper_cmd = joint_cmd[JOINT_CMD_DIM:]
+            gripper_cmd = action[JOINT_CMD_DIM:]
 
             # ===== 最新コマンドとして共有変数に書き込む（Publish スレッドが読む）=====
             with cmd_lock:
