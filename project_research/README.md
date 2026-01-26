@@ -11,16 +11,25 @@ cd teleop
 # Ctrl-C ## stop storing data
 ```
 
+```
+<bag_dir>/
+  <bag_file_000>.bag
+  ...
+  ...
+  <bag_file_NNN>.bag
+```
+
 ## Train
 
 ### Train (converting a bag to data-set)
+
 ```
 cd train
 ./conv_bag_to_pkl.py <bag_dir> --outdir <pkl_dir>
 ```
 
 ```
-./run.sh
+./run.sh ## inside docker
 cd project_research/train
 ./conv_pkl_to_rm.py <pkl_dir> --outdir <rmb_dir>
 ```
@@ -49,5 +58,18 @@ $ python bin/Train.py Act \
 
 - Start to run the robot environment (Real or Simulation)
 
+
 ```
+# inside docker
+./run.sh
+cd project_research/rollout
+source /choreonoid_ws/install/setup.bash; /usr/bin/python3 -u relay_nodes_on_ros.py
+```
+
+```
+# inside the same docker
+docker exec -it robomanip bash
+cd project_research/rollout
+source /irsl_venv/bin/activate
+python -u interfaces_on_rolloutAct.py --checkpoint <checkpoint_dir>/policy_last.ckpt
 ```
