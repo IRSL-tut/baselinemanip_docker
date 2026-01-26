@@ -20,13 +20,14 @@ class InteractiveRollout(RolloutAct):
     --checkpoint を入れて行う。
     """
 
-    def __init__(self):
+    def __init__(self, use_plot=False):
         self.policy_name = "Act"
         self.setup_args()              # argparse で --checkpoint などを読む
         # self.setup_env(render_mode=render_mode)  # 環境は今回使わないので無効
         self.setup_model_meta_info()   # model_meta_info.pkl をロード
         self.setup_policy()            # ACT Policy 構築 & 重みロード
-        self.setup_plot()
+        if use_plot:
+            self.setup_plot()
         self.reset_variables()   # policy_action_list の初期化など
         # デフォルトの画像前処理（uint8 → float32[0,1]）
         self.rollout_time_idx = 0
