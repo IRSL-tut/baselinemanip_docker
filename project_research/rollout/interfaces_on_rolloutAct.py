@@ -58,14 +58,12 @@ def main():
     sys.argv = rollout_argv
     # ========== 1) ACT policy のロード ==========
     rollout = InteractiveRollout()
-    rollout.image_transforms = v2.Compose(
-        [v2.ToDtype(torch.float32, scale=True)]
-    )
-    ###
+
+    ### debug info TODO: => InteractiveRollout
     state_meta  = rollout.model_meta_info["state"]
     action_meta = rollout.model_meta_info["action"]
-    state_dim  = rollout.state_dim
-    action_dim = rollout.action_dim
+    state_dim   = rollout.state_dim
+    action_dim  = rollout.action_dim
     print("[info] state_dim:", state_dim, "action_dim:", action_dim)
     ###
     state_keys  = rollout.model_meta_info.get("state_keys", None)
@@ -105,7 +103,7 @@ def main():
                 time.sleep(PUB_INTERVAL)
                 with cmd_lock:
                     if not has_action:
-                        continue  # まだ初期推論が終わっていない
+                        continue
                     arm_cmd   = latest_arm_cmd.copy()
                     grip_cmd  = latest_gripper_cmd.copy()
                     has_action = False
@@ -142,10 +140,9 @@ def main():
 
             # ===== 画像（head + hand の2カメラ） =====
             np_hand = np.asarray(hand_img, dtype=np.uint8)
-
             np_hand = cv2.cvtColor(np_hand, cv2.COLOR_BGR2RGB)
-            np_images = [ np_hand ]  # [head, hand]
-            images = np_images
+
+            images = [ np_hand ]
 
             # ===== ACT policy から action を計算（推論）=====
             action = rollout.step(state, images, do_plot=False)

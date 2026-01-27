@@ -106,7 +106,6 @@ class InteractiveRollout(RolloutAct):
             }
         }
 
-
     # ---------------------------------------------------------
     # ★ env 依存を消した get_state / get_images のオーバーライド
     #    → infer_policy() から呼ばれる
@@ -120,8 +119,8 @@ class InteractiveRollout(RolloutAct):
             raise RuntimeError("set_input() で state をセットしてから infer_policy() を呼んでください。")
 
         state = self._input_state
-        # 学習時と同じ正規化
-        state = normalize_data(state, self.model_meta_info["state"])
+
+        state = normalize_data(state, self.model_meta_info["state"]) # 学習時と同じ正規化
         state = torch.tensor(state[np.newaxis], dtype=torch.float32).to(self.device)
         return state
 
@@ -140,6 +139,7 @@ class InteractiveRollout(RolloutAct):
         images = torch.tensor(images, dtype=torch.uint8)
         images = self.image_transforms(images)[torch.newaxis].to(self.device)
         return images
+
     def draw_plot(self):
         # まずは一旦全部クリア
         for _ax in np.ravel(self.ax):
@@ -199,12 +199,11 @@ class InteractiveRollout(RolloutAct):
     #    - temporal ensembling も有効なら適用される
     # ---------------------------------------------------------
 
-    # ついでに：1 ステップ分だけ推論 & 可視化するヘルパー
+    # 1 ステップ分だけ推論 & 可視化するヘルパー
     def step(self, state_np, images_np, do_plot=True):
         self.set_input(state_np, images_np)
 
         t0 = time.time()
-          # ★ 後で説明
         self.infer_policy()
         t1 = time.time()
 
