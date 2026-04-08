@@ -1,8 +1,10 @@
-FROM repo.irsl.eiiris.tut.ac.jp/irsl_system:one
+FROM repo.irsl.eiiris.tut.ac.jp/irsl_system:24.04_one
 
-ARG TORCH_VER=2.9
-###
-RUN (cd /; git clone https://github.com/IRSL-tut/RoboManipBaselines.git --recursive)
+# ARG TORCH_VER=2.9
+### 最新版適用のためにisriからダウンロード
+### commit hash 9222eaf6dfddffdd7ba504c210d199866d1e963c でビルドを確認
+# RUN (cd /; git clone https://github.com/IRSL-tut/RoboManipBaselines.git --recursive)
+RUN (cd /; git clone https://github.com/isri-aist/RoboManipBaselines.git --recursive)
 
 WORKDIR /RoboManipBaselines
 
@@ -14,25 +16,27 @@ RUN apt update -q -qq && \
 # RUN python3 -m venv /irsl_venv --copies --system-site-packages
 RUN python3 -m venv /irsl_venv --copies
 
-## install pytorch
-RUN <<EOF
-if [ -e /irsl_venv/bin/activate ]; then
-   source /irsl_venv/bin/activate
-fi
-mkdir -p /opt/python
-pip install --target /opt/python iceoryx2==0.7.0
-#
-if [ ${TORCH_VER} == '2.9' ]; then
-    pip install --break-system-packages torch==2.9.0 torchvision torchcodec==0.8
-elif [ ${TORCH_VER} == '2.8' ]; then
-    pip install --break-system-packages torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 torchcodec==0.6 --index-url https://download.pytorch.org/whl/cu128
-elif [ ${TORCH_VER} == '2.7' ]; then
-    pip install --break-system-packages torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 torchcodec==0.5 --index-url https://download.pytorch.org/whl/cu126
-else
-    set -e
-    [ 0 -eq 1 ] ## failed
-fi
-EOF
+## RoboManipBaselines側で適当なバージョンを入れているのでそれを利用するために削除
+## https://github.com/isri-aist/RoboManipBaselines/commit/dfa0f97c6359ca20b70769dbfca924a3f25c61c2
+# ## install pytorch
+# RUN <<EOF
+# if [ -e /irsl_venv/bin/activate ]; then
+#    source /irsl_venv/bin/activate
+# fi
+# mkdir -p /opt/python
+# pip install --target /opt/python iceoryx2==0.7.0
+# #
+# if [ ${TORCH_VER} == '2.9' ]; then
+#     pip install --break-system-packages torch==2.9.0 torchvision torchcodec==0.8
+# elif [ ${TORCH_VER} == '2.8' ]; then
+#     pip install --break-system-packages torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 torchcodec==0.6 --index-url https://download.pytorch.org/whl/cu128
+# elif [ ${TORCH_VER} == '2.7' ]; then
+#     pip install --break-system-packages torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 torchcodec==0.5 --index-url https://download.pytorch.org/whl/cu126
+# else
+#     set -e
+#     [ 0 -eq 1 ] ## failed
+# fi
+# EOF
 
 RUN source /irsl_venv/bin/activate && \
     cd /RoboManipBaselines && \
@@ -61,6 +65,18 @@ RUN source /irsl_venv/bin/activate && \
     pip install -e .[diffusion-policy] && \
     cd third_party/diffusion_policy && \
     pip install -e .
+
+## Pi0
+RUN source /irsl_venv/bin/activate && \
+    cd /RoboManipBaselines && \
+    pip install -e .[lerobot] && \
+    cd third_party/lerobot && \
+    pip install -e .[pi]
+
+RUN source /irsl_venv/bin/activate && \
+    (cd /; git clone https://github.com/huggingface/lerobot -b v0.4.4 --recursive) && \
+    cd /lerobot && \
+    pip install -e .[pi]
 
 ### patched by IRSL
 RUN <<EOF
@@ -125,4 +141,78 @@ index 6f15a45..fc5c9fc 100644
          # Save last checkpoint
          self.save_current_ckpt("last")
 _DOC_
+EOF
+
+# task_descがないパターンがあったのでコードを修正して対応
+RUN <<EOF
+cd /RoboManipBaselines
+cat << 'PATCH' | patch -p1
+diff --git a/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py b/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py
+index 8ae04f5..f60cc0f 100644
+--- a/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py
++++ b/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py
+@@ -189,6 +189,9 @@ class ConvertRmbDataToLerobot:
+                 elif "task_desc" in rmb_data.attrs:
+                     task_desc = rmb_data.attrs["task_desc"]
+                 else:
++                    task_desc = None
++
++                if not task_desc:
+                     env_name = rmb_data.attrs["env"]
+                     if env_name == "MujocoUR5eCableEnv":
+                         task_desc = "pass the cable between two poles"
+PATCH
+EOF
+
+# convertが遅かったので対応
+RUN <<EOF
+cd /RoboManipBaselines
+cat << 'PATCH' | patch -p1
+diff --git a/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py b/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py
+index 8ae04f5..f60cc0f 100644
+--- a/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py
++++ b/robo_manip_baselines/misc/ConvertRmbDataToLerobot.py
+@@ -393,24 +396,30 @@ class ConvertRmbDataToLerobot:
+ 
+         data_num = len(self.dataset)
+         q01, q99 = {}, {}
+-        data_dir = {}
++        data_dir = {
++            key: []
++            for key, pattern in stats_patterns.items()
++            if key not in self.dataset.meta.camera_keys
++        }
+ 
+-        for key, pattern in stats_patterns.items():
+-            if key in self.dataset.meta.camera_keys:
+-                continue
+-            data_dir[key] = []
+-            for i in range(data_num):
+-                data_dir[key].append(self.dataset[i][key].float())
+-            data_dir[key] = torch.stack(data_dir[key], dim=0)
++        for i in range(data_num):
++            sample = self.dataset[i]
++            for key in data_dir:
++                data_dir[key].append(sample[key].float())
++        
++        for key in data_dir:
++            data = torch.stack(data_dir[key], dim=0)
++            data_dir[key] = data
++
++            q01[key] = torch.quantile(data, 0.01, dim=0)
++            q99[key] = torch.quantile(data, 0.99, dim=0)
+ 
+-            q01[key] = torch.quantile(data_dir[key], 0.01, 0)
+-            q99[key] = torch.quantile(data_dir[key], 0.99, 0)
+ 
+         for key in stats_patterns:
+             if key in self.dataset.meta.camera_keys:
+                 continue
+-            meta_stats[key]["q01"] = q01[key]
+-            meta_stats[key]["q99"] = q99[key]
++            meta_stats[key]["q01"] = np.atleast_1d(q01[key].numpy())
++            meta_stats[key]["q99"] = np.atleast_1d(q99[key].numpy())
+ 
+         serialized_stats = self.serialize_dict(meta_stats)
+PATCH
 EOF
