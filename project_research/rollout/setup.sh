@@ -1,3 +1,3 @@
-export ROS_MASTER_URI=http://133.15.97.117:11311
-export ROS_IP=133.15.97.61
+export ROS_MASTER_URI=http://localhost:11311
+export ROS_IP=localhost
 export ROS_HOSTNAME=$ROS_IP

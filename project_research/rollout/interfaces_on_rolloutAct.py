@@ -81,9 +81,9 @@ def main():
     print("[info] start ACT rollout over iceoryx")
 
     # ========== 3) 次元の定義 ==========
-    JOINT_STATE_DIM = 7
+    JOINT_STATE_DIM = 8
     # JOINT_STATE_DIM = 14 ## with torque
-    JOINT_CMD_DIM   = 6   # command_joint_pos
+    JOINT_CMD_DIM   = 7  # command_joint_pos
     GRIPPER_CMD_DIM = 1
     ACTION_DIM      = JOINT_CMD_DIM + GRIPPER_CMD_DIM  # 7
 

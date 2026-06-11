@@ -43,13 +43,14 @@ def image_msg_to_array(msg):
     return cv_img
 
 STATE_JOINT_ORDER = [
-    "LINK_0",
-    "LINK_1",
-    "LINK_2",
-    "LINK_3",
-    "LINK_4",
-    "LINK_5",
-    "LINK_6",
+    "JOINT0",
+    "JOINT1",
+    "JOINT2",
+    "JOINT3",
+    "JOINT4",
+    "JOINT5",
+    "JOINT6",
+    "GRIPPER",
 ]
 def joint_states_msg_to_array(msg):
     # name → index
@@ -74,7 +75,7 @@ def joint_states_msg_to_array(msg):
 # hand_image
 r_hand_image = relayFromROS(
     'ice_hand_image',
-    '/divided_robot/Camera0/color/image_raw',
+    '/AssembleRobot/Camera0/color/image_raw',
     Image,
     image_msg_to_array,
 )
@@ -82,7 +83,7 @@ r_hand_image = relayFromROS(
 # joint_states
 r_joint_states = relayFromROS(
     'ice_joint_states',
-    '/divided_robot/joint_states',
+    '/AssembleRobot/joint_states',
     JointState,
     joint_states_msg_to_array,
 )
@@ -92,25 +93,26 @@ r_joint_states = relayFromROS(
 ##
 ##
 ARM_JOINT_NAMES  = [
-    "LINK_0",
-    "LINK_1",
-    "LINK_2",
-    "LINK_3",
-    "LINK_4",
-    "LINK_5",
+    "JOINT0",
+    "JOINT1",
+    "JOINT2",
+    "JOINT3",
+    "JOINT4",
+    "JOINT5",
+    "JOINT6",
 ]
 _duration = 0.4
 r_arm_cmd_out = relayToROS(
     'ice_arm_cmd_out',
-    '/divided_robot/trajectory_controller/command',
+    '/AssembleRobot/trajectory_controller/command',
     JointTrajectory,
     lambda ary: array_to_jointtraj(ary, ARM_JOINT_NAMES, _duration)
 )
 
-GRIPPER_JOINT_NAMES = ['LINK_6']
+GRIPPER_JOINT_NAMES = ["GRIPPER"]
 r_gripper_cmd_out = relayToROS(
     'ice_gripper_cmd_out',
-    '/divided_robot/gripper_controller/command',
+    '/AssembleRobot/gripper_controller/command',
     JointTrajectory,
     lambda ary: array_to_jointtraj(ary, GRIPPER_JOINT_NAMES, _duration)
 )
