@@ -118,12 +118,14 @@ def main():
     # ===== 推論ループ（可能な限り回し続ける） =====
     def inference_loop():
         nonlocal latest_arm_cmd, latest_gripper_cmd, has_action
-
+        hand_img = None
+        joint_state = None
         while True:
             # --- 1) 最新のセンサ値を取得 ---
-            hand_img    = sub_hand_img.getLastAry()
-            joint_state = sub_joint_state.getLastAry()
-
+            hand_img_latest =  sub_hand_img.getLastAry()
+            joint_state_latest = sub_joint_state.getLastAry()
+            hand_img = hand_img if hand_img_latest is None else hand_img_latest
+            joint_state = joint_state if joint_state_latest is None else joint_state_latest
             # odom / 画像 / joint_state のどれかが未到着なら待つ
             if joint_state is None or hand_img is None:
                 time.sleep(0.005)
@@ -166,6 +168,8 @@ def main():
             # 推論ループはあえて sleep を入れず、センサ更新に合わせて動かしてもよい
             # 負荷が高ければ少しだけ sleep
             time.sleep(0.001)
+            hand_img = None
+            joint_state = None
 
     # ========== 4) スレッド起動 ==========
     pub_thread = threading.Thread(target=publish_loop, daemon=True)
