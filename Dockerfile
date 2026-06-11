@@ -1,4 +1,4 @@
-FROM repo.irsl.eiiris.tut.ac.jp/irsl_system:one
+FROM repo.irsl.eiiris.tut.ac.jp/irsl_system:24.04_one
 
 ARG TORCH_VER=2.9
 ###
