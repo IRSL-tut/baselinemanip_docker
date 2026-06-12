@@ -8,7 +8,7 @@ name_gripper_state  = f'/{_namespace_}/gripper_controller/state'
 name_joint_state = f'/{_namespace_}/joint_states'
 
 #name_cam_hand       = '/usb_cam/image_raw'
-name_cam_hand       = '/AssembleRobot/Camera0/color/image_raw'
+name_cam_hand       = f'/{_namespace_}/Camera0/color/image_raw'
 
 #
 # determine time steps with this message
