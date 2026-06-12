@@ -2,13 +2,13 @@ import rosbag
 import rospy
 import pickle
 
-_namespace_ = 'divided_robot'
+_namespace_ = 'AssembleRobot'
 name_arm_state  = f'/{_namespace_}/trajectory_controller/state'
 name_gripper_state  = f'/{_namespace_}/gripper_controller/state'
 name_joint_state = f'/{_namespace_}/joint_states'
 
 #name_cam_hand       = '/usb_cam/image_raw'
-name_cam_hand       = '/Camera0/color/image_raw'
+name_cam_hand       = '/AssembleRobot/Camera0/color/image_raw'
 
 #
 # determine time steps with this message
@@ -71,23 +71,25 @@ convertFunctions = {
     }
 
 state_names = [
-    "LINK_0",
-    "LINK_1",
-    "LINK_2",
-    "LINK_3",
-    "LINK_4",
-    "LINK_5",
-    "LINK_6",
+    "JOINT0",
+    "JOINT1",
+    "JOINT2",
+    "JOINT3",
+    "JOINT4",
+    "JOINT5",
+    "JOINT6",
+    "GRIPPER",
     ]
 
 action_names = [
-    "LINK_0",
-    "LINK_1",
-    "LINK_2",
-    "LINK_3",
-    "LINK_4",
-    "LINK_5",
-    "LINK_6",
+    "JOINT0",
+    "JOINT1",
+    "JOINT2",
+    "JOINT3",
+    "JOINT4",
+    "JOINT5",
+    "JOINT6",
+    "GRIPPER",
     ]
 ##
 def makeStatePos(msg_joint_state):
